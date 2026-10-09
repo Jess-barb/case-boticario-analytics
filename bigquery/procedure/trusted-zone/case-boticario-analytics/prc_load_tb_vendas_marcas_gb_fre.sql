@@ -2,7 +2,7 @@
   Carga e Recriação Física da Tabela com Particionamento e Cluster
   Compatível com BigQuery Free Tier (DDL / CTAS)
 */
-CREATE OR REPLACE TABLE `sandbox-jessica.case_boticario_analytics.tb_vendas_marcas_gb_teste` AS
+CREATE OR REPLACE TABLE `case_boticario_analytics.tb_vendas_marcas_gb` AS
 
 
 WITH max_data AS (
