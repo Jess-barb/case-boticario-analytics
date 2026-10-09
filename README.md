@@ -64,3 +64,30 @@ Tabelas armazenadas neste link - https://console.cloud.google.com/bigquery?ws=!1
 │   ├── ddls/                     # DDLs das tabelas RAW e Trusted
 │   └── procedures/               # Stored Procedures de sanitização e carga
 └── README.md                     # Documentação do projeto
+
+
+## Case 2: Consumo da API ViaCEP (Python)
+
+### 📌 Descrição da Solução
+Desenvolvimento de um script em Python (`scripts/case2_viacep.py`) focado no consumo de APIs REST, manipulação de payloads JSON, validação de dados de entrada e tratamento robusto de erros.
+
+###  Funcionalidades Implementadas
+* **Consumo HTTP Dinâmico:** Requisições à API do ViaCEP (`https://viacep.com.br/ws/{cep}/json/`) utilizando a biblioteca `requests`.
+* **Processamento em Lote:** Validação obrigatória dos CEPs de teste:
+  * `90010-900` (Praça Marechal Deodoro, RS)
+  * `70100-000` (Praça dos Três Poderes, DF)
+  * `80010-000` (Centro, Curitiba - PR)
+* **Saída Padronizada:** Exibição em console respeitando a estrutura exigida:
+  `CEP: [Número] | Logradouro: [Nome] | Bairro: [Nome] | Cidade/UF: [Cidade]-[UF]`
+* **Tratamento de Exceções:**
+  * Validação prévia de formato para identificar entradas com número de dígitos diferente de 8.
+  * Tratamento para CEPs inexistentes na base do ViaCEP (`"erro": true`).
+  * Tratamento de falhas e *timeouts* de conexão HTTP.
+Evidência da execução na past Docs
+### Como Executar Localmente
+```bash
+# Instalar a biblioteca de requisições
+pip install requests
+
+# Executar o script
+python scripts/case2_viacep.py
