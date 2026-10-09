@@ -1,0 +1,27 @@
+name: Testar Case 2 - ViaCEP
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  testar-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Instalar Dependências
+        run: pip install requests
+
+      - name: Executar e Testar Script ViaCEP
+        run: python scripts/case2_viacep.py
