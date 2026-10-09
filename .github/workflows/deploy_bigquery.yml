@@ -33,54 +33,58 @@ jobs:
             bigquery/**/*.sql
 
       - name: Autenticar no GCP
-        if: steps.changed-files.outputs.any_changed == 'true' || github.event_name == 'push'
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Configurar gcloud CLI
-        if: steps.changed-files.outputs.any_changed == 'true' || github.event_name == 'push'
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Executar Deploy com Base nos Arquivos de Configuração
-        if: steps.changed-files.outputs.any_changed == 'true' || github.event_name == 'push'
         run: |
-          # Procura todos os JSONs na pasta bigquery se for push direto ou se mudou algo
-          FILES="${{ steps.changed-files.outputs.all_changed_files }}"
-          if [ -z "$FILES" ]; then
-            FILES=$(find bigquery/ -name "*.json")
+          # Procura todos os arquivos .json dentro da pasta bigquery
+          JSON_FILES=$(find bigquery/ -name "*.json")
+
+          if [ -z "$JSON_FILES" ]; then
+            echo "Nenhum arquivo de configuração JSON encontrado."
+            exit 0
           fi
 
-          for json_file in $FILES; do
-            # Se o arquivo for .sql, pega o json correspondente
-            if [[ "$json_file" == *.sql ]]; then
-              json_file="${json_file%.sql}.json"
-            fi
-
-            if [ ! -f "$json_file" ]; then
-              continue
-            fi
+          for json_file in $JSON_FILES; do
+            echo "============================================================"
+            echo "Processando manifesto: $json_file"
+            echo "============================================================"
 
             sql_file="${json_file%.json}.sql"
 
             if [ ! -f "$sql_file" ]; then
-              echo "Aviso: Arquivo SQL $sql_file não encontrado para a config $json_file."
+              echo "Aviso: Arquivo SQL $sql_file não encontrado para $json_file."
               continue
             fi
 
+            # Extrai os metadados via jq
             DATASET=$(jq -r '.dataset' "$json_file")
             
             if [ "${{ github.event_name }}" == "pull_request" ]; then
               TARGET_PROJECT=$(jq -r '.environments.sandbox' "$json_file")
-              echo "--- MODO SANDBOX: Projeto $TARGET_PROJECT ---"
+              echo "--- AMBIENTE DE SANDBOX ($TARGET_PROJECT) ---"
             else
               TARGET_PROJECT=$(jq -r '.environments.production' "$json_file")
-              echo "--- MODO PRODUÇÃO: Projeto $TARGET_PROJECT ---"
+              echo "--- AMBIENTE DE PRODUÇÃO ($TARGET_PROJECT) ---"
             fi
 
-            echo "Garantindo dataset $DATASET no projeto $TARGET_PROJECT..."
-            bq mk --dataset --if_exists $TARGET_PROJECT:$DATASET
+            if [ -z "$TARGET_PROJECT" ] || [ "$TARGET_PROJECT" == "null" ]; then
+              echo "Erro: Projeto alvo não definido no JSON $json_file"
+              exit 1
+            fi
 
-            echo "Executando DDL $sql_file no projeto $TARGET_PROJECT..."
-            bq query --use_legacy_sql=false --project_id=$TARGET_PROJECT < "$sql_file"
+            echo "Garantindo dataset '$DATASET' no projeto '$TARGET_PROJECT'..."
+            if ! bq show --project_id="$TARGET_PROJECT" "$DATASET" > /dev/null 2>&1; then
+              bq mk --dataset --project_id="$TARGET_PROJECT" "$DATASET"
+            else
+              echo "Dataset '$DATASET' já existe no projeto '$TARGET_PROJECT'."
+            fi
+
+            echo "Executando DDL '$sql_file' no projeto '$TARGET_PROJECT'..."
+            bq query --use_legacy_sql=false --project_id="$TARGET_PROJECT" < "$sql_file"
           done
