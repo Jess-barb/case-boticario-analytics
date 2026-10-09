@@ -10,8 +10,7 @@ CREATE OR REPLACE TABLE `case_boticario_analytics.tb_vendas_marcas_gb`
   qt_venda INT64 OPTIONS(description="Quantidade total de itens vendidos"),
   dt_hr_atualizacao TIMESTAMP OPTIONS(description="Data e hora do processamento/carga")
 )
-PARTITION BY dt_venda
-CLUSTER BY cod_marca, cod_linha, nome_marca, nome_linha
+
 OPTIONS(
   description="Tabela consolidada de vendas das marcas e linhas de produtos do GB"
 );
