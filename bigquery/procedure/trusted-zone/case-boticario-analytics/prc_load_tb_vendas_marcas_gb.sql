@@ -1,9 +1,8 @@
 /*
-  Carga e Recriação Física da Tabela com Particionamento e Cluster
-  Compatível com BigQuery Free Tier (DDL / CTAS)
+  Carga e Recriação Física da Tabela com CTAS
+  Compatível com BigQuery Free Tier (DDL)
 */
-CREATE OR REPLACE PROCEDURE `case_boticario_analytics.prc_load_tb_vendas_marcas_gb`(p_target_project STRING)
-
+CREATE OR REPLACE TABLE `case_boticario_analytics.tb_vendas_marcas_gb` AS
 
 WITH max_data AS (
   -- Identifica a maior data disponível na base (seja histórica ou atual)
