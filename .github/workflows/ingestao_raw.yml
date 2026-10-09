@@ -34,4 +34,4 @@ jobs:
         env:
           GOOGLE_CLOUD_PROJECT: 'raw-zone-510905'
         run: |
-          python orquestrador/trusted-zone/case_boticario_analytics/ingestao_raw.py
+          python scripts/ingestao_raw_tb_vendas_marcas_gb.py
