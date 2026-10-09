@@ -1,4 +1,4 @@
-name: Deploy BigQuery Analytics
+name: Deploy BigQuery Analytics (Metadata Driven)
 
 on:
   pull_request:
@@ -9,42 +9,78 @@ on:
   push:
     branches:
       - main
-      - 2026108_criacao_tabela_vendas_marcas_gb
     paths:
       - 'bigquery/**'
+      - '.github/workflows/**'
 
 jobs:
   deploy:
-    name: Executar Deploy no BigQuery
+    name: Executar Deploy baseado em Configuração JSON
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout do Repositório
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Identificar Arquivos Alterados ou Criados
+        id: changed-files
+        uses: tj-actions/changed-files@v44
+        with:
+          files: |
+            bigquery/**/*.json
+            bigquery/**/*.sql
 
       - name: Autenticar no GCP
-        uses: google-github-actions/auth@v1
+        if: steps.changed-files.outputs.any_changed == 'true' || github.event_name == 'push'
+        uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Configurar gcloud CLI
-        uses: google-github-actions/setup-gcloud@v1
+        if: steps.changed-files.outputs.any_changed == 'true' || github.event_name == 'push'
+        uses: google-github-actions/setup-gcloud@v2
 
-      - name: Definir Ambiente e Executar DDL da Tabela
+      - name: Executar Deploy com Base nos Arquivos de Configuração
+        if: steps.changed-files.outputs.any_changed == 'true' || github.event_name == 'push'
         run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            TARGET_PROJECT="sandbox-jessica"
-            echo "--- Executando deploy em AMBIENTE DE SANDBOX ($TARGET_PROJECT) ---"
-          else
-            # Durante testes na branch de feature, roda em Sandbox também
-            if [ "${{ github.ref_name }}" == "main" ]; then
-              TARGET_PROJECT="trusted-zone"
-              echo "--- Executando deploy em AMBIENTE DE PRODUÇÃO ($TARGET_PROJECT) ---"
-            else
-              TARGET_PROJECT="sandbox-jessica"
-              echo "--- Executando deploy em AMBIENTE DE SANDBOX ($TARGET_PROJECT) ---"
-            fi
+          # Procura todos os JSONs na pasta bigquery se for push direto ou se mudou algo
+          FILES="${{ steps.changed-files.outputs.all_changed_files }}"
+          if [ -z "$FILES" ]; then
+            FILES=$(find bigquery/ -name "*.json")
           fi
 
-          # Executa DDL da Tabela
-          bq query --use_legacy_sql=false --project_id=$TARGET_PROJECT < "bigquery/table/trusted-zone/case-boticario-analytics/tb_vendas_marcas_gb.sql"
+          for json_file in $FILES; do
+            # Se o arquivo for .sql, pega o json correspondente
+            if [[ "$json_file" == *.sql ]]; then
+              json_file="${json_file%.sql}.json"
+            fi
+
+            if [ ! -f "$json_file" ]; then
+              continue
+            fi
+
+            sql_file="${json_file%.json}.sql"
+
+            if [ ! -f "$sql_file" ]; then
+              echo "Aviso: Arquivo SQL $sql_file não encontrado para a config $json_file."
+              continue
+            fi
+
+            DATASET=$(jq -r '.dataset' "$json_file")
+            
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              TARGET_PROJECT=$(jq -r '.environments.sandbox' "$json_file")
+              echo "--- MODO SANDBOX: Projeto $TARGET_PROJECT ---"
+            else
+              TARGET_PROJECT=$(jq -r '.environments.production' "$json_file")
+              echo "--- MODO PRODUÇÃO: Projeto $TARGET_PROJECT ---"
+            fi
+
+            echo "Garantindo dataset $DATASET no projeto $TARGET_PROJECT..."
+            bq mk --dataset --if_exists $TARGET_PROJECT:$DATASET
+
+            echo "Executando DDL $sql_file no projeto $TARGET_PROJECT..."
+            bq query --use_legacy_sql=false --project_id=$TARGET_PROJECT < "$sql_file"
+          done
