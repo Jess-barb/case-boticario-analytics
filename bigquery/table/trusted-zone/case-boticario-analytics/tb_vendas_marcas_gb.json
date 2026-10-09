@@ -1,0 +1,11 @@
+{
+  "object_type": "table",
+  "dataset": "case_boticario_analytics",
+  "table_name": "tb_vendas_marcas_gb",
+  "environments": {
+    "sandbox": "sandbox-jessica",
+    "production": "trusted-zone-510905"
+  },
+  "layer": "trusted-zone",
+  "owner": "Jessica Barbosa da Silva"
+}

@@ -1,4 +1,4 @@
-name: Deploy BigQuery Analytics
+name: Deploy BigQuery Analytics (Metadata Driven)
 
 on:
   pull_request:
@@ -9,42 +9,83 @@ on:
   push:
     branches:
       - main
-      - 2026108_criacao_tabela_vendas_marcas_gb
     paths:
       - 'bigquery/**'
+      - '.github/workflows/**'
 
 jobs:
   deploy:
-    name: Executar Deploy no BigQuery
+    name: Executar Deploy baseado em Configuração JSON
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout do Repositório
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Identificar Arquivos Alterados ou Criados
+        id: changed-files
+        uses: tj-actions/changed-files@v44
+        with:
+          files: |
+            bigquery/**/*.json
+            bigquery/**/*.sql
 
       - name: Autenticar no GCP
-        uses: google-github-actions/auth@v1
+        uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Configurar gcloud CLI
-        uses: google-github-actions/setup-gcloud@v1
+        uses: google-github-actions/setup-gcloud@v2
 
-      - name: Definir Ambiente e Executar DDL da Tabela
+      - name: Executar Deploy com Base nos Arquivos de Configuração
         run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            TARGET_PROJECT="sandbox-jessica"
-            echo "--- Executando deploy em AMBIENTE DE SANDBOX ($TARGET_PROJECT) ---"
-          else
-            # Durante testes na branch de feature, roda em Sandbox também
-            if [ "${{ github.ref_name }}" == "main" ]; then
-              TARGET_PROJECT="trusted-zone"
-              echo "--- Executando deploy em AMBIENTE DE PRODUÇÃO ($TARGET_PROJECT) ---"
-            else
-              TARGET_PROJECT="sandbox-jessica"
-              echo "--- Executando deploy em AMBIENTE DE SANDBOX ($TARGET_PROJECT) ---"
-            fi
+          # Procura todos os arquivos .json dentro da pasta bigquery
+          JSON_FILES=$(find bigquery/ -name "*.json")
+
+          if [ -z "$JSON_FILES" ]; then
+            echo "Nenhum arquivo de configuração JSON encontrado."
+            exit 0
           fi
 
-          # Executa DDL da Tabela
-          bq query --use_legacy_sql=false --project_id=$TARGET_PROJECT < "bigquery/table/trusted-zone/case-boticario-analytics/tb_vendas_marcas_gb.sql"
+          for json_file in $JSON_FILES; do
+            echo "============================================================"
+            echo "Processando manifesto: $json_file"
+            echo "============================================================"
+
+            sql_file="${json_file%.json}.sql"
+
+            if [ ! -f "$sql_file" ]; then
+              echo "Aviso: Arquivo SQL $sql_file não encontrado para $json_file."
+              continue
+            fi
+
+            # Extrai os metadados via jq
+            DATASET=$(jq -r '.dataset' "$json_file")
+            
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              # Tenta ler .environments.sandbox, se for null tenta .environments.dev ou .environments.development
+              TARGET_PROJECT=$(jq -r '.environments.sandbox // .environments.dev // .environments.development // .environment.sandbox // empty' "$json_file")
+              echo "--- AMBIENTE DE SANDBOX ($TARGET_PROJECT) ---"
+            else
+              TARGET_PROJECT=$(jq -r '.environments.production // .environments.prod // .environment.production // empty' "$json_file")
+              echo "--- AMBIENTE DE PRODUÇÃO ($TARGET_PROJECT) ---"
+            fi
+
+            if [ -z "$TARGET_PROJECT" ] || [ "$TARGET_PROJECT" == "null" ]; then
+              echo "Erro: Projeto alvo não definido no JSON $json_file"
+              exit 1
+            fi
+
+            echo "Garantindo dataset '$DATASET' no projeto '$TARGET_PROJECT'..."
+            if ! bq show --project_id="$TARGET_PROJECT" "$DATASET" > /dev/null 2>&1; then
+              bq mk --dataset --project_id="$TARGET_PROJECT" "$DATASET"
+            else
+              echo "Dataset '$DATASET' já existe no projeto '$TARGET_PROJECT'."
+            fi
+
+            echo "Executando DDL '$sql_file' no projeto '$TARGET_PROJECT'..."
+            bq query --use_legacy_sql=false --project_id="$TARGET_PROJECT" < "$sql_file"
+          done
