@@ -3,7 +3,7 @@
   "dataset": "case_boticario_analytics",
   "procedure_name": "prc_load_tb_vendas_marcas_gb",
   "environments": {
-    "sandbox": "sandbox-jessica",
+    "sandbox": "trusted-zone-510905",
     "production": "trusted-zone-510905"
   },
   "layer": "trusted-zone",
