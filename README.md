@@ -45,7 +45,7 @@ A partir da tabela limpa principal (`tb_vendas_marcas_gb`), foram construídas 4
 2. **`tb_vendas_marca_linha`**: Consolidado de vendas agrupado por hierarquia de produto (marca e linha).
 3. **`tb_vendas_ano_mes`**: Visão temporal de vendas agrupada por ano e mês.
 4. **`tb_vendas_linha_ano_mes`**: Visão temporal de vendas agrupada por linha de produto, ano e mês.
-
+Tabelas armazenadas neste link - https://console.cloud.google.com/bigquery?ws=!1m4!1m3!3m2!1strusted-zone-510905!2scase_boticario_analytics
 ---
 
 ## 📁 Estrutura do Repositório
