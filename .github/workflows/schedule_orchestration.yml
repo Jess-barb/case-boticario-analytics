@@ -22,8 +22,9 @@ jobs:
       - name: Configurar gcloud CLI
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Executar Stored Procedure no BigQuery
+      - name: Executar Stored Procedure na Trusted Zone
         run: |
           bq query \
             --use_legacy_sql=false \
-            'CALL `case_boticario_analytics.prc_load_tb_vendas_marcas_gb`();'
+            --project_id=trusted-zone-510905 \
+            'CALL `trusted-zone-510905.case_boticario_analytics.prc_load_tb_vendas_marcas_gb`();'
