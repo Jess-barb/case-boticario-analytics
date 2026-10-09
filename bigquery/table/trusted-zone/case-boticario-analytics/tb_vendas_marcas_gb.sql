@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS `case_boticario_analytics.tb_vendas_marcas_gb`
+CREATE OR REPLACE TABLE `case_boticario_analytics.tb_vendas_marcas_gb`
 (
   dt_venda DATE OPTIONS(description="Data em que ocorreu a venda (YYYY-MM-DD)"),
   nr_ano INT64 OPTIONS(description="Ano da venda"),
