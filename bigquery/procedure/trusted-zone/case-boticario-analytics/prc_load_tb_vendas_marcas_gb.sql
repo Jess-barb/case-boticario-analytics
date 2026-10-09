@@ -2,7 +2,9 @@
   Carga e Recriação Física da Tabela com CTAS
   Compatível com BigQuery Free Tier (DDL)
 */
-CREATE OR REPLACE TABLE `case_boticario_analytics.tb_vendas_marcas_gb` AS
+CREATE OR REPLACE PROCEDURE `case_boticario_analytics.prc_load_tb_vendas_marcas_gb`()
+BEGIN
+  CREATE OR REPLACE TABLE `case_boticario_analytics.tb_vendas_marcas_gb` AS
 
 WITH max_data AS (
   -- Identifica a maior data disponível na base (seja histórica ou atual)
@@ -39,3 +41,4 @@ QUALIFY ROW_NUMBER() OVER (
   PARTITION BY cod_marca, cod_linha, dt_venda
   ORDER BY data_hora_ingestao DESC
 ) = 1;
+END;
