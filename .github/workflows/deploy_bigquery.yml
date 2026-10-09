@@ -66,10 +66,11 @@ jobs:
             DATASET=$(jq -r '.dataset' "$json_file")
             
             if [ "${{ github.event_name }}" == "pull_request" ]; then
-              TARGET_PROJECT=$(jq -r '.environments.sandbox' "$json_file")
+              # Tenta ler .environments.sandbox, se for null tenta .environments.dev ou .environments.development
+              TARGET_PROJECT=$(jq -r '.environments.sandbox // .environments.dev // .environments.development // .environment.sandbox // empty' "$json_file")
               echo "--- AMBIENTE DE SANDBOX ($TARGET_PROJECT) ---"
             else
-              TARGET_PROJECT=$(jq -r '.environments.production' "$json_file")
+              TARGET_PROJECT=$(jq -r '.environments.production // .environments.prod // .environment.production // empty' "$json_file")
               echo "--- AMBIENTE DE PRODUÇÃO ($TARGET_PROJECT) ---"
             fi
 
