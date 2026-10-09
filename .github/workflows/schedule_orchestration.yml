@@ -1,0 +1,29 @@
+name: Orquestracao Diaria - Trusted Zone
+
+on:
+  push:
+    branches: [ "main", "20261009_criacao_orquestrador*" ]
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  execute-procedure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Autenticar no GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configurar gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Executar Stored Procedure no BigQuery
+        run: |
+          bq query \
+            --use_legacy_sql=false \
+            'CALL `case_boticario_analytics.prc_load_tb_vendas_marcas_gb`();'
